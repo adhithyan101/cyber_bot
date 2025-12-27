@@ -19,6 +19,23 @@ import base64
 import requests
 import tldextract
 import Levenshtein
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import os
+
+PORT = int(os.getenv("PORT", 10000))
+
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+def keep_alive():
+    server = HTTPServer(("0.0.0.0", PORT), DummyHandler)
+    server.serve_forever()
+
+threading.Thread(target=keep_alive, daemon=True).start()
 
 # =========================
 # ENVIRONMENT VARIABLES
@@ -264,3 +281,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# ==========================================================
