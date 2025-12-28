@@ -93,6 +93,15 @@ def get_risk_image(confidence):
 # =========================
 # USER MESSAGES
 # =========================
+
+CONFIDENCE_MEANING = (
+    "📊 *Confidence Interpretation*\n"
+    "🟢 *0–30%* → Likely Safe (No major scam indicators)\n"
+    "🟡 *31–60%* → Low to Moderate Risk (Be cautious)\n"
+    "🟠 *61–80%* → High Risk (Possible scam/phishing)\n"
+    "🔴 *81–100%* → Very High Risk (Likely scam)\n"
+)
+
 START_MSG = (
     "👋 *Welcome to Cyber Scam Detection Bot*\n\n"
     "🛡️ I analyze messages and links to detect scams & phishing.\n\n"
@@ -114,13 +123,27 @@ ML_CLASS = {
 }
 
 DISCLAIMER = (
-    "\n\nℹ️ *Disclaimer:*\n"
-    "This analysis is advisory. Always verify via official sources."
+    "\n\n⚠️ *Important Disclaimer*\n"
+    "• This analysis is *advisory*, not a legal or security guarantee.\n"
+    "• Attackers frequently change techniques to bypass detection.\n"
+    "• A low risk score does *not* mean the message is 100% safe.\n"
+    "• Never share OTPs, passwords, or personal details.\n"
+    "• Always verify messages via official apps or websites.\n"
 )
+
 
 # =========================
 # HELPER FUNCTIONS
 # =========================
+
+def risk_banner(label):
+    if label == "DANGEROUS":
+        return "🚨🚨 *CRITICAL WARNING!* 🚨🚨\n"
+    elif label == "SUSPICIOUS":
+        return "⚠️ *CAUTION ADVISED* ⚠️\n"
+    else:
+        return "🛡️ *GENERAL SAFETY NOTICE* 🛡️\n"
+
 def extract_links(text):
     return re.findall(r'https?://\S+', text)
 
@@ -232,12 +255,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     image_url = get_risk_image(confidence)
     reason_text = "\n".join(f"• {r}" for r in reasons)
 
+    banner = risk_banner(label)
     reply = (
-        f"*Classification:* {EN_CLASS[label] if user_language[user_id]=='EN' else ML_CLASS[label]}\n"
-        f"*Confidence:* {confidence}%\n\n"
-        f"*Reasons:*\n{reason_text}"
-        f"{DISCLAIMER}"
+    f"{banner}"
+    f"*🔍 Analysis Summary*\n\n"
+    f"*🧪 Classification:* "
+    f"{EN_CLASS[label] if user_language[user_id]=='EN' else ML_CLASS[label]}\n"
+    f"*📈 Confidence Score:* {confidence}%\n\n"
+    f"{CONFIDENCE_MEANING}\n"
+    f"*🧠 Detection Reasons:*\n"
+    f"{reason_text if reason_text else '• No strong indicators detected'}"
+    f"{DISCLAIMER}"
     )
+
 
     await update.message.reply_photo(
         photo=image_url,
