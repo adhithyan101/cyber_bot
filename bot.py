@@ -94,7 +94,7 @@ def get_risk_image(confidence):
 # USER MESSAGES
 # =========================
 
-CONFIDENCE_MEANING = (
+CONFIDENCE_MEANING_EN = (
     "📊 *Confidence Interpretation*\n"
     "🟢 *0–30%* → Likely Safe (No major scam indicators)\n"
     "🟡 *31–60%* → Low to Moderate Risk (Be cautious)\n"
@@ -102,12 +102,23 @@ CONFIDENCE_MEANING = (
     "🔴 *81–100%* → Very High Risk (Likely scam)\n"
 )
 
+CONFIDENCE_MEANING_ML = (
+    "📊 *വിശ്വാസനിലയുടെ അർത്ഥം*\n"
+    "🟢 *0–30%* → സാധാരണ സുരക്ഷിതം (വലിയ തട്ടിപ്പ് സൂചനകളില്ല)\n"
+    "🟡 *31–60%* → കുറഞ്ഞ മുതൽ മിതമായ അപകടസാധ്യത (ശ്രദ്ധിക്കുക)\n"
+    "🟠 *61–80%* → ഉയർന്ന അപകടസാധ്യത (തട്ടിപ്പ് / ഫിഷിംഗ് സാധ്യത)\n"
+    "🔴 *81–100%* → വളരെ ഉയർന്ന അപകടസാധ്യത (തട്ടിപ്പാകാൻ സാധ്യത)\n"
+)
+
 START_MSG = (
     "👋 *Welcome to Cyber Scam Detection Bot*\n\n"
-    "🛡️ I analyze messages and links to detect scams & phishing.\n\n"
+    "🛡️ This bot analyzes messages and links to identify scams & phishing attempts.\n\n"
+    "📈 You will receive a confidence score indicating the risk level.\n"
+    "⚠️ Always verify messages through official channels.\n\n"
     "🌐 Choose language:\n"
     "1️⃣ English\n"
-    "2️⃣ മലയാളം"
+    "2️⃣ മലയാളം\n\n"
+    "ℹ️ You can change language anytime using /lang"
 )
 
 EN_CLASS = {
@@ -122,13 +133,22 @@ ML_CLASS = {
     "SAFE": "✅ *കുറഞ്ഞ അപകടസാധ്യത*."
 }
 
-DISCLAIMER = (
+DISCLAIMER_EN = (
     "\n\n⚠️ *Important Disclaimer*\n"
-    "• This analysis is *advisory*, not a legal or security guarantee.\n"
+    "• This analysis is advisory, not a legal or security guarantee.\n"
     "• Attackers frequently change techniques to bypass detection.\n"
-    "• A low risk score does *not* mean the message is 100% safe.\n"
+    "• A low risk score does not mean the message is 100% safe.\n"
     "• Never share OTPs, passwords, or personal details.\n"
     "• Always verify messages via official apps or websites.\n"
+)
+
+DISCLAIMER_ML = (
+    "\n\n⚠️ *പ്രധാന അറിയിപ്പ്*\n"
+    "• ഈ വിശകലനം ഒരു ഉപദേശമാണ്, നിയമപരമായ അല്ലെങ്കിൽ സുരക്ഷാ ഉറപ്പല്ല.\n"
+    "• ആക്രമകർ കണ്ടെത്തൽ ഒഴിവാക്കാൻ തന്ത്രങ്ങൾ മാറ്റിക്കൊണ്ടിരിക്കുന്നു.\n"
+    "• കുറഞ്ഞ അപകടസാധ്യതയെന്ന് അർത്ഥമാക്കുന്നത് 100% സുരക്ഷിതമാണെന്നല്ല.\n"
+    "• OTP, പാസ്‌വേഡ്, വ്യക്തിഗത വിവരങ്ങൾ ഒരിക്കലും പങ്കിടരുത്.\n"
+    "• ഔദ്യോഗിക ആപ്പുകൾ അല്ലെങ്കിൽ വെബ്സൈറ്റുകൾ വഴി മാത്രം സ്ഥിരീകരിക്കുക.\n"
 )
 
 # =========================
@@ -234,7 +254,6 @@ def analyze_message(text):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if user_id in user_language:
         await update.message.reply_text(
             "👋 Welcome back!\n\n"
@@ -249,7 +268,8 @@ async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🌐 *Change Language*\n\n"
         "1️⃣ English\n"
-        "2️⃣ മലയാളം",
+        "2️⃣ മലയാളം\n\n"
+        "ℹ️ This will change the language of analysis results.",
         parse_mode="Markdown"
     )
 
@@ -278,17 +298,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reason_text = "\n".join(f"• {r}" for r in reasons)
     banner = risk_banner(label)
 
-    reply = (
-        f"{banner}"
-        f"*🔍 Analysis Summary*\n\n"
-        f"*🧪 Classification:* "
-        f"{EN_CLASS[label] if user_language[user_id]=='EN' else ML_CLASS[label]}\n"
-        f"*📈 Confidence Score:* {confidence}%\n\n"
-        f"{CONFIDENCE_MEANING}\n"
-        f"*🧠 Detection Reasons:*\n"
-        f"{reason_text if reason_text else '• No strong indicators detected'}"
-        f"{DISCLAIMER}"
-    )
+    if user_language[user_id] == "EN":
+        reply = (
+            f"{banner}"
+            f"*🔍 Analysis Summary*\n\n"
+            f"*🧪 Classification:* {EN_CLASS[label]}\n"
+            f"*📈 Confidence Score:* {confidence}%\n\n"
+            f"{CONFIDENCE_MEANING_EN}\n"
+            f"*🧠 Detection Reasons:*\n"
+            f"{reason_text if reason_text else '• No strong indicators detected'}"
+            f"{DISCLAIMER_EN}"
+        )
+    else:
+        reply = (
+            f"{banner}"
+            f"*🔍 വിശകലന സംഗ്രഹം*\n\n"
+            f"*🧪 വർഗ്ഗീകരണം:* {ML_CLASS[label]}\n"
+            f"*📈 വിശ്വാസനില:* {confidence}%\n\n"
+            f"{CONFIDENCE_MEANING_ML}\n"
+            f"*🧠 കണ്ടെത്തിയ കാരണങ്ങൾ:*\n"
+            f"{reason_text if reason_text else '• ശക്തമായ തട്ടിപ്പ് സൂചനകളില്ല'}"
+            f"{DISCLAIMER_ML}"
+        )
 
     await update.message.reply_photo(
         photo=image_url,
@@ -309,3 +340,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# ==========================================================
