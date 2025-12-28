@@ -112,17 +112,18 @@ DISCLAIMER = (
 # =========================
 
 RISK_IMAGES = [
-    (10, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_0_10.png"),
-    (20, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_11_20.png"),
-    (30, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_21_30.png"),
-    (40, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_31_40.png"),
-    (50, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_41_50.png"),
-    (60, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_51_60.png"),
-    (70, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_61_70.png"),
-    (80, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_71_80.png"),
-    (90, "https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_81_90.png"),
-    (100,"https://raw.githubusercontent.com/USERNAME/REPO/main/images/risk_91_100.png"),
+    (10,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_0_10.png.png"),
+    (20,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_11_20.png.png"),
+    (30,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_21_30.png.png"),
+    (40,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_31_40.png.png"),
+    (50,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_41_50.png.png"),
+    (60,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_51_60.png.png"),
+    (70,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_61_70.png.png"),
+    (80,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_71_80.png.png"),
+    (90,  "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_81_90.png.png"),
+    (100, "https://raw.githubusercontent.com/3bin-05/cyber_bot/main/images/risk_91_100.png.png"),
 ]
+
 
 
 # =========================
@@ -167,6 +168,11 @@ def similarity_score(domain):
 def tld_risk(domain):
     return 2 if any(domain.endswith(tld) for tld in HIGH_RISK_TLDS) else 0
 
+def get_risk_image(confidence):
+    for limit, img_url in RISK_IMAGES:
+        if confidence <= limit:
+            return img_url
+    return RISK_IMAGES[-1][1]
 
 def virustotal_check(url):
     # 🔹 Check cache first
@@ -305,7 +311,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{DISCLAIMER}"
         )
 
-    await update.message.reply_text(reply, parse_mode="Markdown")
+    image_url = get_risk_image(confidence)
+    await update.message.reply_photo(
+    photo=image_url,
+    caption=reply,
+    parse_mode="Markdown"
+)
+
 
 # =========================
 # MAIN
