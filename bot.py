@@ -270,6 +270,7 @@ def tld_risk(domain):
 
 def virustotal_check(url):
     if url in vt_cache:
+        vt_cache[url]["cached"] = True
         cached_data = vt_cache[url]
         return (
             cached_data["risk"],
