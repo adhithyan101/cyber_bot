@@ -55,6 +55,14 @@ ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 # =========================
 user_language = {}
 vt_cache = {}
+vt_cache[url] = {
+    "risk": risk,
+    "reason": vt_reason,
+    "cached": False
+}
+sb_cache = {}
+abuse_cache = {}
+
 
 # =========================
 # OFFICIAL DOMAINS & RULES
@@ -159,8 +167,11 @@ DISCLAIMER_ML = (
 # HELPER FUNCTIONS
 # =========================
 def safe_browsing_check(url):
+    if url in sb_cache:
+        return sb_cache[url][0], f"{sb_cache[url][1]} (cached check)"
+
     if not GOOGLE_SAFE_BROWSING_KEY:
-        return False, "Safe Browsing API not configured"
+        return False, "Google Safe Browsing not configured"
 
     payload = {
         "client": {
@@ -184,13 +195,23 @@ def safe_browsing_check(url):
         )
 
         if r.status_code == 200 and r.json().get("matches"):
-            return True, "Google Safe Browsing: phishing/malware detected"
+            result = (True, "Google Safe Browsing: phishing/malware detected")
+            sb_cache[url] = result
+            return True, f"{result[1]} (fresh check)"
+
+        result = (False, "Google Safe Browsing: no threats detected")
+        sb_cache[url] = result
+        return False, f"{result[1]} (fresh check)"
 
     except:
-        pass
+        return False, "Google Safe Browsing check failed"
 
-    return False, "Google Safe Browsing: no threats detected"
+
 def abuseipdb_check(domain):
+    if domain in abuse_cache:
+        cached = abuse_cache[domain]
+        return cached["risk"], f"{cached['reason']} (cached lookup)"
+
     if not ABUSEIPDB_API_KEY:
         return 0, "AbuseIPDB not configured"
 
@@ -208,15 +229,25 @@ def abuseipdb_check(domain):
         r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10)
 
         if r.status_code != 200:
-            return 0, "AbuseIPDB unavailable"
+            result = {"risk": 0, "reason": "AbuseIPDB unavailable"}
+            abuse_cache[domain] = result
+            return 0, f"{result['reason']} (fresh lookup)"
 
         data = r.json()["data"]
         score = data.get("abuseConfidenceScore", 0)
+        risk = score // 25
 
-        return score // 25, f"AbuseIPDB abuse score: {score}%"
+        result = {
+            "risk": risk,
+            "reason": f"AbuseIPDB abuse score: {score}%"
+        }
+
+        abuse_cache[domain] = result
+        return risk, f"{result['reason']} (fresh lookup)"
 
     except:
         return 0, "AbuseIPDB check failed"
+
 
 def risk_banner(label):
     if label == "DANGEROUS":
@@ -245,7 +276,11 @@ def tld_risk(domain):
 
 def virustotal_check(url):
     if url in vt_cache:
-        return vt_cache[url]
+        cached_data = vt_cache[url]
+        return (
+            cached_data["risk"],
+            f"{cached_data['reason']} (cached result)"
+        )
 
     try:
         url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
@@ -253,22 +288,38 @@ def virustotal_check(url):
         r = requests.get(VT_URL + url_id, headers=headers, timeout=10)
 
         if r.status_code != 200:
-            result = (0, "VirusTotal unavailable")
+            result = {
+                "risk": 0,
+                "reason": "VirusTotal unavailable",
+                "cached": False
+            }
             vt_cache[url] = result
-            return result
+            return result["risk"], f"{result['reason']} (fresh scan)"
 
         stats = r.json()["data"]["attributes"]["last_analysis_stats"]
         mal = stats.get("malicious", 0)
         sus = stats.get("suspicious", 0)
 
-        result = (mal * 3 + sus * 2, f"VirusTotal: {mal} malicious, {sus} suspicious")
-        vt_cache[url] = result
-        return result
+        risk = mal * 3 + sus * 2
+        reason = f"VirusTotal: {mal} malicious, {sus} suspicious"
+
+        vt_cache[url] = {
+            "risk": risk,
+            "reason": reason,
+            "cached": False
+        }
+
+        return risk, f"{reason} (fresh scan)"
 
     except:
-        result = (0, "VirusTotal check failed")
+        result = {
+            "risk": 0,
+            "reason": "VirusTotal check failed",
+            "cached": False
+        }
         vt_cache[url] = result
-        return result
+        return result["risk"], f"{result['reason']} (fresh scan)"
+
 
 # =========================
 # CORE ANALYSIS
