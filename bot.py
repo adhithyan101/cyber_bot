@@ -42,9 +42,13 @@ import Levenshtein
 # =========================
 # ENVIRONMENT VARIABLES
 # =========================
+GOOGLE_SAFE_BROWSING_KEY = os.getenv("GOOGLE_SAFE_BROWSING_KEY")
+ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
 VT_URL = "https://www.virustotal.com/api/v3/urls/"
+SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 
 # =========================
 # USER DATA
@@ -154,6 +158,65 @@ DISCLAIMER_ML = (
 # =========================
 # HELPER FUNCTIONS
 # =========================
+def safe_browsing_check(url):
+    if not GOOGLE_SAFE_BROWSING_KEY:
+        return False, "Safe Browsing API not configured"
+
+    payload = {
+        "client": {
+            "clientId": "cyber-scam-bot",
+            "clientVersion": "1.0"
+        },
+        "threatInfo": {
+            "threatTypes": ["MALWARE", "SOCIAL_ENGINEERING"],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [{"url": url}]
+        }
+    }
+
+    try:
+        r = requests.post(
+            SAFE_BROWSING_URL,
+            params={"key": GOOGLE_SAFE_BROWSING_KEY},
+            json=payload,
+            timeout=10
+        )
+
+        if r.status_code == 200 and r.json().get("matches"):
+            return True, "Google Safe Browsing: phishing/malware detected"
+
+    except:
+        pass
+
+    return False, "Google Safe Browsing: no threats detected"
+def abuseipdb_check(domain):
+    if not ABUSEIPDB_API_KEY:
+        return 0, "AbuseIPDB not configured"
+
+    try:
+        headers = {
+            "Key": ABUSEIPDB_API_KEY,
+            "Accept": "application/json"
+        }
+
+        params = {
+            "domain": domain,
+            "maxAgeInDays": 90
+        }
+
+        r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10)
+
+        if r.status_code != 200:
+            return 0, "AbuseIPDB unavailable"
+
+        data = r.json()["data"]
+        score = data.get("abuseConfidenceScore", 0)
+
+        return score // 25, f"AbuseIPDB abuse score: {score}%"
+
+    except:
+        return 0, "AbuseIPDB check failed"
 
 def risk_banner(label):
     if label == "DANGEROUS":
@@ -222,6 +285,12 @@ def analyze_message(text):
     for link in extract_links(text):
         domain = root_domain(link)
 
+        # 🥇 Layer 1: Google Safe Browsing (OVERRIDE)
+        sb_hit, sb_reason = safe_browsing_check(link)
+        if sb_hit:
+            reasons.append(sb_reason)
+            return "DANGEROUS", 95, reasons
+
         sim, real = similarity_score(domain)
         if sim > 0.80:
             risk += 4
@@ -232,6 +301,13 @@ def analyze_message(text):
             risk += tr
             reasons.append("High-risk domain extension")
 
+        # 🥈 Layer 2: AbuseIPDB
+        abuse_risk, abuse_reason = abuseipdb_check(domain)
+        if abuse_risk:
+            risk += abuse_risk
+            reasons.append(abuse_reason)
+
+        # 🥉 Layer 3: VirusTotal
         vt_risk, vt_reason = virustotal_check(link)
         risk += vt_risk
         reasons.append(vt_reason)
@@ -246,6 +322,7 @@ def analyze_message(text):
         label = "SAFE"
 
     return label, confidence, reasons
+
 
 # =========================
 # TELEGRAM HANDLERS
