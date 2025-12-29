@@ -317,7 +317,7 @@ def virustotal_check(url):
 
 
 # =========================
-# CORE ANALYSIS
+# CORE ANALYSIS (FIXED)
 # =========================
 def analyze_message(text):
     risk = 0
@@ -331,10 +331,10 @@ def analyze_message(text):
     for link in extract_links(text):
         domain = root_domain(link)
 
-        # 🥇 Layer 1: Google Safe Browsing (OVERRIDE)
+        # 🥇 Google Safe Browsing (ALWAYS SHOWN)
         sb_hit, sb_reason = safe_browsing_check(link)
+        reasons.append(sb_reason)
         if sb_hit:
-            reasons.append(sb_reason)
             return "DANGEROUS", 95, reasons
 
         sim, real = similarity_score(domain)
@@ -347,16 +347,15 @@ def analyze_message(text):
             risk += tr
             reasons.append("High-risk domain extension")
 
-        # 🥈 Layer 2: AbuseIPDB
+        # 🥈 AbuseIPDB (ALWAYS SHOWN)
         abuse_risk, abuse_reason = abuseipdb_check(domain)
-        if abuse_risk:
-            risk += abuse_risk
-            reasons.append(abuse_reason)
+        reasons.append(abuse_reason)
+        risk += abuse_risk
 
-        # 🥉 Layer 3: VirusTotal
+        # 🥉 VirusTotal (ALWAYS SHOWN)
         vt_risk, vt_reason = virustotal_check(link)
-        risk += vt_risk
         reasons.append(vt_reason)
+        risk += vt_risk
 
     confidence = min(10 + risk * 12, 95)
 
